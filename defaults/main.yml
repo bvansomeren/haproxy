@@ -1,0 +1,29 @@
+---
+# defaults file for bvansomeren.haproxy
+#
+haproxy_package: "haproxy"
+haproxy_extra_packages:
+- py27-openssl
+- hatop
+- rsync
+
+public_ip: "{{ ansible_default_ipv4.address }}"
+haproxy_default_cert: "{{ haproxy_cert_folder }}/default-combined"
+haproxy_cert_folder: "/usr/local/etc/haproxy/certs"
+haproxy_certificates: []
+
+haproxy_stats_enabled: True
+haproxy_stats_public: True
+haproxy_stats_user: admin
+haproxy_enable_ssl: True
+
+sites: []
+#  - name: coffeesprout
+#    domains:
+#    - www.coffeesprout.nl
+#    - coffeesprout.nl
+#    servers:
+#    - id: server1
+#      hostname: 192.168.2.175
+#    - id: server2
+#      hostname: 192.168.2.176

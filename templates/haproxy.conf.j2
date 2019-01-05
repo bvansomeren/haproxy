@@ -1,0 +1,82 @@
+global
+        maxconn         20000
+				ulimit-n				16384
+        log             127.0.0.1 local0
+        uid             200
+        gid             200
+        chroot          /var/empty
+				nbproc					{{ haproxy_nbproc | default('1') }}
+        daemon
+        ssl-default-bind-options no-sslv3 no-tls-tickets force-tlsv12
+        ssl-default-bind-ciphers EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH:AES128+EECDH:AES128+EDH
+        tune.ssl.default-dh-param 2048
+
+defaults
+        log     global
+        mode    http
+        option  httplog
+        option  dontlognull
+        option forwardfor
+        option http-server-close
+{% if haproxy_stats_public %}
+        stats enable
+        stats auth {{ haproxy_stats_user }}:{{ haproxy_stats_password }}
+        stats uri /haproxyStats
+{% endif %}
+
+# Frontends
+{% if haproxy_stats_enabled %}
+frontend stats
+  bind 127.0.0.1:9000
+  stats enable
+  stats auth {{ haproxy_stats_user }}:{{ haproxy_stats_password }}
+  stats uri /haproxyStats
+{% endif %}
+
+frontend http-{{ inventory_hostname }}
+  bind {{ public_ip }}:80
+{% if haproxy_enable_ssl %}
+  acl http ssl_fc,not
+  http-request redirect scheme https if http
+{% else %}
+{% for site in sites %}
+{% for domain in site.domains %} 
+  acl {{ site.name }}-acl hdr(host) -i {{ domain }} 
+{% endfor %}
+{% endfor %}
+{% for site in sites %}
+{% for domain in site.domains %} 
+  use_backend {{ site.name }}_backend if {{ site.name }}-acl 
+{% endfor %}
+{% endfor %}
+{% endif %}
+
+{% if haproxy_enable_ssl %}
+frontend https-{{ inventory_hostname }}
+  bind {{ public_ip }}:443 ssl crt {{ haproxy_default_cert }} crt {{ haproxy_cert_folder }}{% for cert in haproxy_certificates %}crt {{ cert }}{% endfor %}
+
+  reqadd X-Forwarded-Proto:\ https
+{% if letsencrypt_host is defined %}
+  acl letsencrypt-acl path_beg /.well-known/acme-challenge/
+  use_backend letsencrypt-backend if letsencrypt-acl
+{% endif %}
+{% for site in sites %}
+{% for domain in site.domains %} 
+  use_backend {{ site.name }}-backend if { ssl_fc_sni {{ domain }} }
+{% endfor %}
+{% endfor %}
+{% endif %}
+
+# Backends
+{% if letsencrypt_host is defined %}
+backend letsencrypt-backend
+   server letsencrypt {{ letsencrypt_host }}:{{ letsencrypt_port | default('8080') }}
+{% endif %}
+
+{% for site in sites %}
+backend {{ site.name }}-backend
+   balance {{ site.balance | default('roundrobin') }}
+{% for server in site.servers %}
+    server {{ server.id }} {{ server.hostname }}:{{ server.port | default('80') }} check
+{% endfor %}
+{% endfor %}

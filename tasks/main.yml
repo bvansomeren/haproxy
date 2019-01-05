@@ -1,0 +1,82 @@
+---
+# main task file
+
+- name: ensure haproxy is installed
+  package:
+    name: "{{ haproxy_package }}"
+    state: present
+
+- name: ensure additional packages are installed
+  package:
+    name: "{{ haproxy_extra_packages }}"
+    state: present
+
+- name: ensure haproxy is enabled
+  command: sysrc haproxy_enable="YES"
+
+- name: ensure haproxy user
+  user:
+    name: haproxy
+    group: nobody
+    create_home: no
+    system: yes
+
+- name: ensure haproxy logfile
+  copy:
+    content: ""
+    force: no
+    group: root
+    group: wheel
+    dest: /var/log/haproxy.log
+
+- name: ensure /usr/local/etc/syslog.d
+  file:
+    state: directory
+    owner: root
+    group: wheel
+    path: /usr/local/etc/syslog.d
+
+- name: ensure syslogd entry for haproxy
+  copy:
+    content: "local0.*            /var/log/haproxy.log"
+    dest: /usr/local/etc/syslog.d/haproxy.conf
+    owner: root
+    group: wheel
+  notify: Reload syslog
+
+- name: ensure haproxy certs folder
+  file:
+    state: directory
+    owner: root
+    group: wheel
+    path: "{{ haproxy_cert_folder }}"
+
+- name: Generate an OpenSSL private key.
+  openssl_privatekey:
+    path: /usr/local/etc/ssl/default.key
+
+- name: Generate an OpenSSL CSR.
+  openssl_csr:
+    path: /usr/local/etc/ssl/default.csr
+    privatekey_path: /usr/local/etc/ssl/default.key
+    common_name: "{{ server_hostname }}"
+
+- name: Generate a Self Signed OpenSSL certificate.
+  openssl_certificate:
+    path: /usr/local/etc/ssl/default.crt
+    privatekey_path: /usr/local/etc/ssl/default.key
+    csr_path: /usr/local/etc/ssl/default.csr
+    provider: selfsigned
+
+- name: ensure self signed cert is combined for HAProxy
+  shell: "cat /usr/local/etc/ssl/default.crt /usr/local/etc/ssl/default.key > {{ haproxy_default_cert }}" 
+  args:
+    creates: "{{ haproxy_default_cert }}"
+
+- name: ensure haproxy configuration
+  template:
+    src: haproxy.conf.j2
+    dest: /usr/local/etc/haproxy.conf
+  register: haproxy_config_change
+  notify: restart haproxy
+
