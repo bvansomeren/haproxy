@@ -1,10 +1,10 @@
 global
         maxconn         20000
 				ulimit-n				16384
-        log             127.0.0.1 local0
+        log             /var/run/log local0 notice
         uid             200
         gid             200
-        chroot          /var/empty
+        #chroot          /var/empty
 				nbproc					{{ haproxy_nbproc | default('1') }}
         daemon
         ssl-default-bind-options no-sslv3 no-tls-tickets force-tlsv12
