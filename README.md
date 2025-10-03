@@ -1,5 +1,25 @@
-bvansomeren.haproxy
-=================
+# ⚠️ DEPRECATED - Use coffeesprout.haproxy instead
+
+**This role has been deprecated and is no longer maintained.**
+
+Please use the updated role: **[coffeesprout.haproxy](https://github.com/CoffeeSprout/ansible-role-haproxy)**
+
+```bash
+# Install from GitHub
+ansible-galaxy install git+https://github.com/CoffeeSprout/ansible-role-haproxy.git,main
+```
+
+The new role offers:
+- Modern Ansible practices
+- Better platform support (FreeBSD 13/14, Debian 12/13, AlmaLinux 8/9)
+- Active maintenance
+- Comprehensive testing with Molecule
+
+---
+
+## Original Documentation (archived)
+
+# bvansomeren.haproxy
 
 Installs HAProxy from ports and configures frontends and backends as required.
 Sets up its own self signed cert to bootstrap the proxy https.
